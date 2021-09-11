@@ -1,0 +1,1123 @@
+1)
+Write a java program to unload the Order details from a Database table to a .XLSX file. Considering the filter conditions (status == available) 
+
+Answer:
+
+
+Entity:-
+
+package com.htc.unload.entity;
+
+public class OrderDetails 
+{
+	private int orderId;
+	private String orderName;
+	private String orderAddress;
+	private String status;
+	
+	public OrderDetails() {}
+	
+	public OrderDetails(int orderId, String orderName, String orderAddress, String status) {
+		super();
+		this.orderId = orderId;
+		this.orderName = orderName;
+		this.orderAddress = orderAddress;
+		this.status = status;
+	}
+	public int getOrderId() {
+		return orderId;
+	}
+	public void setOrderId(int orderId) {
+		this.orderId = orderId;
+	}
+	public String getOrderName() {
+		return orderName;
+	}
+	public void setOrderName(String orderName) {
+		this.orderName = orderName;
+	}
+	public String getOrderAddress() {
+		return orderAddress;
+	}
+	public void setOrderAddress(String orderAddress) {
+		this.orderAddress = orderAddress;
+	}
+	public String getStatus() {
+		return status;
+	}
+	public void setStatus(String status) {
+		this.status = status;
+	}
+	@Override
+	public String toString() {
+		return "OrderDetails [orderId=" + orderId + ", orderName=" + orderName + ", orderAddress=" + orderAddress
+				+ ", status=" + status + "]";
+	}
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((orderAddress == null) ? 0 : orderAddress.hashCode());
+		result = prime * result + orderId;
+		result = prime * result + ((orderName == null) ? 0 : orderName.hashCode());
+		result = prime * result + ((status == null) ? 0 : status.hashCode());
+		return result;
+	}
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		OrderDetails other = (OrderDetails) obj;
+		if (orderAddress == null) {
+			if (other.orderAddress != null)
+				return false;
+		} else if (!orderAddress.equals(other.orderAddress))
+			return false;
+		if (orderId != other.orderId)
+			return false;
+		if (orderName == null) {
+			if (other.orderName != null)
+				return false;
+		} else if (!orderName.equals(other.orderName))
+			return false;
+		if (status == null) {
+			if (other.status != null)
+				return false;
+		} else if (!status.equals(other.status))
+			return false;
+		return true;
+	}
+	
+	
+
+}
+DAO:-
+
+Interface:
+package com.htc.unload.dao;
+
+import java.sql.SQLException;
+import java.util.List;
+
+import com.htc.unload.entity.OrderDetails;
+
+public interface OrderDAO 
+{
+	public void unloadData()throws SQLException;
+	public void writeToExcel(List<OrderDetails> emp);
+
+}
+
+Implementation:
+package com.htc.unload.dao;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.logging.LogManager;
+
+import org.apache.log4j.Logger;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+import com.htc.unload.dbconnector.DBConnection;
+import com.htc.unload.entity.OrderDetails;
+
+
+
+public class OrderDAOImpl implements OrderDAO{
+	
+	public static Logger logger = Logger.getLogger(OrderDAOImpl.class);
+		
+	Connection con;
+	List<OrderDetails> ordlist = new ArrayList<OrderDetails>();
+	
+	public OrderDAOImpl() throws ClassNotFoundException, IOException, SQLException {
+		con = DBConnection.getConnection();
+		LogManager.getLogManager().readConfiguration(new FileInputStream("src\\db.properties"));
+		logger.info("Database connection obtained");
+	}
+	@Override
+	public void unloadData() throws SQLException {
+		// TODO Auto-generated method stub
+		Statement stmt = con.createStatement();
+		String query = "select orderId,orderName,orderAddress,status from orderdetails";
+		ResultSet rs = stmt.executeQuery(query);
+		logger.info("data reterived from database");
+		while(rs.next())
+		{
+			OrderDetails ord = new OrderDetails();
+			ord.setOrderId(rs.getInt(1));
+			ord.setOrderName(rs.getString(2));
+			ord.setOrderAddress(rs.getString(3));
+			ord.setStatus(rs.getString(4));
+			ordlist.add(ord);
+			
+		}
+		logger.info("data is writing into excel");
+		writeToExcel(ordlist);
+		
+	}
+
+	@Override
+	public void writeToExcel(List<OrderDetails> ordlist) {
+		// TODO Auto-generated method stub
+		String fileName = "OrderList.xlsx";
+
+		Workbook workbook = null;
+		if (fileName.endsWith("xlsx"))
+			workbook = new HSSFWorkbook();
+
+		else if (fileName.endsWith("xls"))
+			workbook = new XSSFWorkbook();
+		else
+			try {
+				throw new FileNotFoundException("Excepted file format xls or xlsx is not found");
+			} catch (FileNotFoundException e) {
+				
+				e.printStackTrace();
+			}
+		
+		Sheet sheet= workbook.createSheet("OrderList");
+		
+		Row row;
+		int rowno=0;
+		int cellno=0;
+		
+		row = sheet.createRow(rowno);
+		Cell cell = row.createCell(cellno);
+		
+		cell = row.createCell(cellno);
+		cell.setCellValue("Order Id");
+		cellno++;
+		
+		cell = row.createCell(cellno);
+		cell.setCellValue("Order Name");
+		cellno++;
+		
+		cell = row.createCell(cellno);
+		cell.setCellValue("Order Address");
+		cellno++;
+		
+		cell = row.createCell(cellno);
+		cell.setCellValue("Status");
+		cellno++;
+		
+		rowno++;
+		
+		for(OrderDetails emp:ordlist)
+		{
+			row = sheet.createRow(rowno);
+			
+			cellno=0;
+			
+			int orderid = emp.getOrderId();
+			String ordername = emp.getOrderName();
+			String orderaddress = emp.getOrderAddress();
+			String status = emp.getStatus();
+			
+			
+			if(status.equals("Available"))
+			{
+			cell = row.createCell(cellno);
+			cell.setCellValue(orderid);
+			cellno++;
+			
+			cell = row.createCell(cellno);
+			cell.setCellValue(ordername);
+			cellno++;
+			
+			cell = row.createCell(cellno);
+			cell.setCellValue(orderaddress);
+			cellno++;
+			
+			cell = row.createCell(cellno);
+			cell.setCellValue(status);
+			cellno++;
+					
+			rowno++;
+			}
+			
+			
+			
+		}
+		
+		
+		FileOutputStream fos = null;
+		try {
+			fos = new FileOutputStream(new File(fileName));
+		} catch (FileNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		try {
+			workbook.write(fos);
+			logger.info("Excel Write Succeeded...");
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			logger.error("workbook not found");
+		}
+	}
+
+}
+
+DbConnection:-
+
+package com.htc.unload.dbconnector;
+import java.io.FileInputStream;
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Properties;
+public class DBConnection {
+	public static Connection getConnection() throws SQLException, IOException 
+	{
+	
+	Properties prop=new Properties();
+	prop.load(new FileReader("src\\db.properties"));
+	Connection con = DriverManager.getConnection(prop.getProperty("url"),prop.getProperty("username"), prop.getProperty("password"));
+	return con;	
+}
+}
+
+Main Class:-
+
+package com.htc.unload.main;
+
+import java.io.IOException;
+import java.sql.SQLException;
+
+import com.htc.unload.dao.OrderDAO;
+import com.htc.unload.dao.OrderDAOImpl;
+
+public class Main {
+
+	public static void main(String[] args) throws ClassNotFoundException, IOException, SQLException {
+		// TODO Auto-generated method stub
+		OrderDAO dao = new OrderDAOImpl();
+		
+		dao.unloadData();
+	}
+
+}
+
+Table Query:-
+CREATE TABLE orderdetails(orderId int,orderName VARCHAR(30),orderAddress VARCHAR(30),status VARCHAR(30));
+
+Inserting values:-
+INSERT INTO orderdetails VALUES (1,'Pen','Chennai','Available');
+INSERT INTO orderdetails VALUES(2,'Pencil','Gudur','Not Available');
+INSERT INTO orderdetails VALUES(3,'Book','Hyderabad','Available');
+INSERT INTO orderdetails VALUES(4,'Box','Banglore','Available');
+
+
+
+2)
+Write a core java program which can achieve has-a-relationship between Department and Employee. Prepare an interface to do CRUD operation on Employee class. (15 mark)
+
+    I. Store Employee as map inside Department class  where employee Id is key.
+    II. Facility to do basic CRUD operations for Employee class as separate Interface Implementation class.
+    III. Implement user defined exception like "EmployeeNotFoundException" and handle loggers.
+
+
+Answer:
+
+
+Employee Entity:-
+import java.time.LocalDate;
+
+public class Employee {
+
+	private int EmployeeId;
+	private String EmployeeName;
+	private String gender;
+	private LocalDate dateOfBirth;
+	private String address;
+	
+	public Employee(int EmployeeId, String EmployeeName, String gender, LocalDate dateOfBirth, String address) {
+		super();
+		this.EmployeeId = EmployeeId;
+		this.EmployeeName = EmployeeName;
+		this.gender = gender;
+		this.dateOfBirth = dateOfBirth;
+		this.address = address;
+	}
+
+	public int getEmployeeId() {
+		return EmployeeId;
+	}
+
+	public String getEmployeeName() {
+		return EmployeeName;
+	}
+
+	public String getGender() {
+		return gender;
+	}
+
+	public LocalDate getDateOfBirth() {
+		return dateOfBirth;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setEmployeeId(int EmployeeId) {
+		this.EmployeeId = EmployeeId;
+	}
+
+	public void setEmployeeName(String EmployeeName) {
+		this.EmployeeName = EmployeeName;
+	}
+
+	public void setGender(String gender) {
+		this.gender = gender;
+	}
+
+	public void setDateOfBirth(LocalDate dateOfBirth) {
+		this.dateOfBirth = dateOfBirth;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	@Override
+	public String toString() {
+		return "Employee [EmployeeId=" + EmployeeId + ", EmployeeName=" + EmployeeName + ", gender=" + gender
+				+ ", dateOfBirth=" + dateOfBirth + ", address=" + address + "]";
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + EmployeeId;
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Employee other = (Employee) obj;
+		if (EmployeeId != other.EmployeeId)
+			return false;
+		return true;
+	}
+	
+	
+}
+
+Department Entity:-
+import java.util.TreeMap;
+
+public class Department {
+	private String DepartmentName;
+	private String DepartmentAddress;
+	private int DepartmentCode;
+	private TreeMap<Integer,Employee> employees;
+	
+	public Department(String string, String string2, String string3) {
+
+	}
+	
+	public Department(String DepartmentName, String DepartmentAddress, int DepartmentCode, TreeMap<Integer, Employee> employees) {
+		super();
+		this.DepartmentName = DepartmentName;
+		this.DepartmentAddress = DepartmentAddress;
+		this.DepartmentCode = DepartmentCode;
+		this.employees = employees;
+	}
+
+	public String getdepartmentName() {
+		return DepartmentName;
+	}
+
+	public String getdepartmentAddress() {
+		return DepartmentAddress;
+	}
+
+	public int getdepartmentCode() {
+		return DepartmentCode;
+	}
+
+	public TreeMap<Integer, Employee> getEmployees() {
+		return employees;
+	}
+
+	public void setdepartmentName(String DepartmentName) {
+		this.DepartmentName = DepartmentName;
+	}
+
+	public void setdepartmentAddress(String DepartmentAddress) {
+		this.DepartmentAddress = DepartmentAddress;
+	}
+
+	public void setdepartmentCode(int DepartmentCode) {
+		this.DepartmentCode = DepartmentCode;
+	}
+
+	public void setEmployees(TreeMap<Integer, Employee> employees) {
+		this.employees = employees;
+	}
+
+	@Override
+	public String toString() {
+		return "department [DepartmentName=" + DepartmentName + ", DepartmentAddress=" + DepartmentAddress + ", DepartmentCode="
+				+ DepartmentCode + ", employees=" + employees + "]";
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + DepartmentCode;
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Department other = (Department) obj;
+		if (DepartmentCode != other.DepartmentCode)
+			return false;
+		return true;
+	} 
+}
+
+DAO:-
+import com.htc.DEPEMP.EmployeeNotFoundException.EmployeeNotFoundException;
+import com.htc.DEPEMP.entity.Employee;
+
+public interface IDepartmentServiceInterface {
+	public boolean addEmployee(Employee obj);
+	public boolean deleteEmployee(int EmployeeId) throws EmployeeNotFoundException;
+	public boolean updateEmployee(Employee obj);
+	public Employee getEmployee(int EmployeeId);
+	public void displayAllTheEmployees();
+}
+
+Implementation:-
+
+import java.util.Map.Entry;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.sql.SQLException;
+import java.util.TreeMap;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
+
+import com.htc.DEPEMP.EmployeeNotFoundException.EmployeeNotFoundException;
+import com.htc.DEPEMP.entity.Department;
+import com.htc.DEPEMP.entity.Employee;
+
+
+
+public class IDepartmentServiceInterfaceimpl implements IDepartmentServiceInterface {
+	
+	Logger log = Logger.getLogger("IDepartmentServiceInterfaceimpl");
+	LogManager.getLogManager().readConfiguration(new FileInputStream("src//logging.properties"));
+
+	
+	private Department department = new Department();
+	private TreeMap<Integer, Employee> employee = new TreeMap<Integer, Employee>();
+	private static int key = 0;
+
+	@Override
+	public boolean addEmployee(Employee obj) {
+		// TODO Auto-generated method stub
+
+		department.setdepartmentName("VCET");
+		department.setdepartmentCode(7329);
+		department.setdepartmentAddress("erode");
+
+		employee.put(key, obj);
+		department.setEmployees(employee);
+		key++;
+		return false;
+	}
+
+	@Override
+	public boolean deleteEmployee(int EmployeeId) throws EmployeeNotFoundException {
+		// TODO Auto-generated method stub
+
+		boolean flag = false;
+
+		for (Entry<Integer, Employee> entry : employee.entrySet()) {
+			if (entry.getValue().getEmployeeId() == EmployeeId) {
+				employee.remove(entry.getKey());
+				flag = true;
+				break;
+			}
+		}
+		if (!flag) {
+			throw new EmployeeNotFoundException("EmployeeNotFoundException");
+
+		} 
+		return flag;
+
+	}
+
+	@Override
+	public boolean updateEmployee(Employee obj) {
+		// TODO Auto-generated method stub
+
+		for (Entry<Integer, Employee> entry : employee.entrySet()) {
+			if (entry.getValue().getEmployeeId() == obj.getEmployeeId()) {
+				entry.getValue().setEmployeeName(obj.getEmployeeName());
+				entry.getValue().setAddress(obj.getAddress());
+				entry.getValue().setDateOfBirth(obj.getDateOfBirth());
+				entry.getValue().setGender(obj.getGender());
+
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public Employee getEmployee(int studentId) {
+		// TODO Auto-generated method stub
+
+		Employee stu = null;
+		int flag = 0;
+
+		for (Entry<Integer, Employee> entry : employee.entrySet()) {
+			if (entry.getValue().getEmployeeId() == studentId) {
+
+				flag = 1;
+				stu = entry.getValue();
+			}
+		}
+		if (flag == 1) {
+			return stu;
+		} else {
+
+			return stu;
+		}
+	}
+
+	public Department getDepartment() {
+		return department;
+	}
+
+	public void setDepartment(Department department) {
+		this.department = department;
+	}
+
+	@Override
+	public void displayAllTheEmployees() {
+		// TODO Auto-generated method stub
+		for (Entry<Integer, Employee> entry : employee.entrySet()) {
+			//System.out.println(entry.getValue());
+			log.info(entry.getValue());
+		}
+	}
+
+}
+Employee not found exception
+-------------------
+package com.htc.DEPEMP.EmployeeNotFoundException;
+
+public class EmployeeNotFoundException extends Exception{
+	private String errorMsg;
+	
+	public EmployeeNotFoundException(String errorMsg) {
+		this.errorMsg=errorMsg;
+	}
+
+			
+
+	public EmployeeNotFoundException() {
+			super();
+				
+			}
+
+	@Override
+	public String toString() {
+		return "EmployeeNotFoundException [errorMsg=" + errorMsg + "]";
+	}
+			
+
+}
+Main:-
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.time.LocalDate;
+import java.util.Scanner;
+
+import com.htc.DEPEMP.DAO.IDepartmentServiceInterfaceimpl;
+import com.htc.DEPEMP.EmployeeNotFoundException.EmployeeNotFoundException;
+import com.htc.DEPEMP.entity.Department;
+import com.htc.DEPEMP.entity.Employee;
+
+public class MainClass {
+
+	public static void main(String[] args) throws SecurityException, FileNotFoundException, IOException {
+		// TODO Auto-generated method stub
+		Scanner inp=new Scanner(System.in);
+		Department dp = new Department("DepartmentName","DepartmentAddress","DepartmentCode");
+		
+		Employee s1 = new Employee(25701, "Ashok","male", LocalDate.of(1998, 4, 3),"BLOCK-1");
+		Employee s2 = new Employee(25702, "Naveen","male", LocalDate.of(1998, 6, 12),"BLOCK-2");
+		Employee s3 = new Employee(25703, "Rama","male", LocalDate.of(1998, 1, 17),"BLOCK-3");
+		Employee s4 = new Employee(25704, "UMa","male", LocalDate.of(1998, 8, 4),"BLOCK-1");
+		
+		dp.setEmployees(null);
+		System.out.println(dp);
+		
+		System.out.println("EmployeeId \t EmployeeName \t gender \t dateOfBirth\t \t address \t  ");
+		 
+		for (int i=0;i<dp.getEmployees().length;i++) {
+			System.out.println("EmployeeId \t EmployeeName \t gender \t dateOfBirth\t \t address \t  ");
+
+		
+		IDepartmentServiceInterfaceimpl service = new IDepartmentServiceInterfaceimpl();
+		
+		
+		// ADD STUDENT
+		service.addEmployee(s1);
+		service.addEmployee(s2);
+		service.addEmployee(s3);
+		service.addEmployee(s4);
+		
+		// UPDATE THE EMPLOYEE 
+		Employee obj = service.getEmployee(1224);
+		if(obj != null) {
+			obj.setDateOfBirth(obj.getDateOfBirth());
+			obj.setGender(obj.getGender());
+			obj.setEmployeeName(obj.getEmployeeName());
+			obj.setEmployeeId(obj.getEmployeeId());
+			obj.setAddress("chennai");
+			service.updateEmployee(obj);
+		}
+		
+		// DELETE A EMPLOYEE
+		try {
+			boolean status = service.deleteEmployee(122);
+		} catch (EmployeeNotFoundException e) {
+			// TODO Auto-generated catch block
+			System.out.println("employee not found ");
+		}
+		
+		//get all employee
+		
+		service.displayAllTheEmployees();
+		
+		
+		}
+	}
+}
+DbConnection:-
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Properties;
+public class DbConnect 
+{
+	public static Connection getConnection()  {
+		{
+			
+			Properties prop=new Properties();
+			try {
+				prop.load(new FileReader("db.properties"));
+			} catch (FileNotFoundException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			Connection con = null;
+			try {
+				con = DriverManager.getConnection(prop.getProperty("url"),prop.getProperty("username"), prop.getProperty("password"));
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return con;	
+		}
+	}
+
+}
+
+Table Query:-
+CREATE TABLE department(departmentName VARCHAR(30),departmentAddress VARCHAR(30),departmentCode int,employees VARCHAR(30));
+
+
+3)
+Implement CRUD operations in DB for Employee class.Use PreparedStatement (15 mark)
+
+Answer:
+
+Entity:
+package com.htc.employeecrud.entity;
+
+import java.io.Serializable;
+
+public class Employee
+{
+
+	private String empId;
+	private String empName;
+	private String email;
+	private String phoneno;
+	private int salary;
+	
+	public Employee() {}
+	public Employee(String empId, String empName, String email, String phoneno, int salary) {
+		super();
+		this.empId = empId;
+		this.empName = empName;
+		this.email = email;
+		this.phoneno = phoneno;
+		this.salary = salary;
+	}
+	public String getEmpId() {
+		return empId;
+	}
+	public void setEmpId(String empId) {
+		this.empId = empId;
+	}
+	public String getEmpName() {
+		return empName;
+	}
+	public void setEmpName(String empName) {
+		this.empName = empName;
+	}
+	public String getEmail() {
+		return email;
+	}
+	public void setEmail(String email) {
+		this.email = email;
+	}
+	public String getPhoneno() {
+		return phoneno;
+	}
+	public void setPhoneno(String phoneno) {
+		this.phoneno = phoneno;
+	}
+	public int getSalary() {
+		return salary;
+	}
+	public void setSalary(int salary) {
+		this.salary = salary;
+	}
+	@Override
+	public String toString() {
+		return "Employee [empId=" + empId + ", empName=" + empName + ", email=" + email + ", phoneno=" + phoneno
+				+ ", salary=" + salary + "]";
+	}
+	
+
+}
+DAO:-
+Interface:-
+package com.htc.employeecrud.dao;
+
+import java.util.List;
+
+import com.htc.employeecrud.entity.Employee;
+
+
+public interface EmployeeDAO 
+{
+	public boolean addEmployee(Employee emp);
+	
+	public boolean deleteEmployee(String empId);
+	public Employee getEmployeeById(String empId);
+	
+	public boolean updateSalaryById(String empId,int salary);
+	public List<Employee> getAllEmployee();
+
+}
+Implementation:-
+package com.htc.employeecrud.dao;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+
+import com.htc.employeecrud.dbconnection.DBConnect;
+import com.htc.employeecrud.entity.Employee;
+
+public class EmployeeDAOImplementation implements EmployeeDAO
+{
+	@Override
+	public boolean addEmployee(Employee emp) 
+	{
+		// TODO Auto-generated method stub
+		boolean insertFlag = false;
+		if(emp!=null) {
+		Connection con = DBConnect.getConnection();
+		try {
+			PreparedStatement stmt = con.prepareStatement("insert into employee2 values(?,?,?,?,?)");
+			stmt.setString(1, emp.getEmpId());
+			stmt.setString(2, emp.getEmpName());
+			stmt.setString(3, emp.getEmail());
+			stmt.setString(4, emp.getPhoneno());
+			stmt.setInt(5, emp.getSalary());
+			int result=stmt.executeUpdate();
+			insertFlag = true;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		}
+		
+		return insertFlag;
+	}
+
+	
+	@Override
+	public boolean deleteEmployee(String empId) {
+		// TODO Auto-generated method stub
+		boolean deleteFlag = true;
+		Connection con = DBConnect.getConnection();
+		PreparedStatement stmt;
+		try {
+			stmt = con.prepareStatement("delete from table where empid = ?");
+			stmt.setString(1, empId);
+			stmt.execute();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return deleteFlag;
+	}
+
+	@Override
+	public Employee getEmployeeById(String empId) {
+		// TODO Auto-generated method stub
+		Employee emp = new Employee();
+		Connection con = DBConnect.getConnection();
+		try {
+			PreparedStatement stmt = con.prepareStatement("select empid,empname,email,phoneno,salary from employee2 where empid=?");
+			stmt.setString(1, empId);
+			ResultSet rs = stmt.executeQuery();
+			while(rs.next())
+			{
+				emp.setEmpId(rs.getString(1));
+				emp.setEmpName(rs.getString(2));
+				emp.setEmail(rs.getString(3));
+				emp.setPhoneno(rs.getString(4));
+				emp.setSalary(rs.getInt(5));
+				
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return emp;
+	}
+
+	@Override
+	public List<Employee> getAllEmployee() {
+		// TODO Auto-generated method stub
+		List<Employee> emplist = new ArrayList<Employee>();
+		
+		Connection con = DBConnect.getConnection();
+		Statement stmt;
+		try {
+			stmt = con.createStatement();
+			ResultSet rs = stmt.executeQuery("select empid,empname,email,phoneno,salary from employee2");
+			while(rs.next())
+			{
+				Employee emp = new Employee();
+				emp.setEmpId(rs.getString(1));
+				emp.setEmpName(rs.getString(2));
+				emp.setEmail(rs.getString(3));
+				emp.setPhoneno(rs.getString(4));
+				emp.setSalary(rs.getInt(5));
+				emplist.add(emp);
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		return emplist;
+	}
+
+	@Override
+	public boolean updateSalaryById(String empId, int salary) {
+		// TODO Auto-generated method stub
+		boolean updateFlag = true;
+		Connection con = DBConnect.getConnection();
+		PreparedStatement pst;
+		try {
+			pst = con.prepareStatement(" update employee2 set salary=? where empId=?");
+			pst.setInt(1, salary);
+			pst.setString(2, empId);
+			pst.executeUpdate();
+			
+		}  catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		{
+			
+		}
+		return updateFlag;
+	}
+
+
+	
+
+
+}
+
+DbConnection:
+package com.htc.employeecrud.dbconnection;
+
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.Properties;
+public class DBConnect 
+{
+	public static Connection getConnection()  {
+		{
+			
+			Properties prop=new Properties();
+			try {
+				prop.load(new FileReader("src\\db.properties"));
+			} catch (FileNotFoundException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+			Connection con = null;
+			try {
+				con = DriverManager.getConnection(prop.getProperty("url"),prop.getProperty("username"), prop.getProperty("password"));
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return con;	
+		}
+	}
+
+}
+
+Main:-
+package com.htc.employeecrud.main;
+
+import org.apache.log4j.Logger;
+
+import com.htc.employeecrud.dao.EmployeeDAO;
+import com.htc.employeecrud.dao.EmployeeDAOImplementation;
+import com.htc.employeecrud.entity.Employee;
+public class Main {
+	public static Logger logger =Logger.getLogger(Main.class);
+	
+	public static void main(String[] args) {
+		// TODO Auto-generated method stub
+		Employee emp1 = new Employee("E01", "SS", "SS@htcindia.com", "9874562124", 30000);
+		Employee emp2 = new Employee("E02", "RR", "RR@htcindia.com", "987443345", 40000);
+		Employee emp3 = new Employee("E03", "PP", "PP@htcindia.com", "9874563210", 50000);
+		Employee emp4 = new Employee("E04", "QQ", "QQ@htcindia.com", "9874563210", 60000);
+		
+		EmployeeDAO daoobj = new EmployeeDAOImplementation();
+		
+		daoobj.addEmployee(emp1);
+		daoobj.addEmployee(emp2);
+		daoobj.addEmployee(emp3);
+		daoobj.addEmployee(emp4);
+		logger.info("Added the Employee values");
+	
+		
+		System.out.println(daoobj.getAllEmployee());
+		logger.info("Getting all the Employee details");
+		System.out.println(daoobj.getEmployeeById("E01"));
+		
+
+		System.out.println(daoobj.updateSalaryById("E03",25000));
+		logger.info("Updated the Salary in Employee");
+		
+		System.out.println(daoobj.deleteEmployee("E01"));
+		logger.info("Deleted the Employee E01");
+		
+	}
+
+}
+
+
+Table Query:-
+CREATE TABLE employee2(empId VARCHAR(20),empname VARCHAR(30),email VARCHAR(30),phoneno VARCHAR(30),salary int);
+
+
+4)
+How to validate an IP address using ReGex.  (5 Mark)
+
+Answer:
+
+
+package com.htc.regex;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+public class IpAddress 
+{
+	 public static boolean isValidIP(String ipAddr)
+	 	{
+         
+	        Pattern ptn = Pattern.compile("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$");
+	        Matcher mtch = ptn.matcher(ipAddr);
+	        return mtch.find();
+	 	}
+	 
+	  public static void main(String a[])
+	   	{
+	        System.out.println("10.23.45.12 is valid? "+IpAddress.isValidIP("100.23.45.12"));
+	        System.out.println("10.2a.56.32 is valid? "+IpAddress.isValidIP("10.2a.56.32"));
+	        System.out.println("10.23.45 is valid? "+IpAddress.isValidIP("108.223.45.90"));
+	    }
+
+}
